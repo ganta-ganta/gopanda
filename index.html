@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>GoPandaCars - Customer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div id="authDiv" class="card p-4 mb-4">
+      <h2>Customer Login</h2>
+      <input id="email" type="email" class="form-control mb-2" placeholder="Email"/>
+      <input id="password" type="password" class="form-control mb-2" placeholder="Password"/>
+      <button id="btnSignIn" class="btn btn-primary me-2">Sign In</button>
+      <button id="btnSignUp" class="btn btn-secondary">Sign Up</button>
+      <p id="authMsg" class="text-danger mt-2"></p>
+    </div>
+
+    <div id="bookingSection" style="display:none;">
+      <h3>Available Cars</h3>
+      <div class="row" id="carList"></div>
+
+      <div class="card p-4 mt-4">
+        <h4>Book a Car</h4>
+        <select id="selCar" class="form-select mb-2">
+          <option value="">Choose Car...</option>
+        </select>
+        <input id="startDate" type="date" class="form-control mb-2"/>
+        <input id="endDate" type="date" class="form-control mb-2"/>
+        <button id="btnBook" class="btn btn-success">Book Car</button>
+        <button id="btnSignOut" class="btn btn-danger ms-2">Logout</button>
+        <p id="bookMsg" class="text-success mt-2"></p>
+      </div>
+
+      <div class="card p-4 mt-4">
+        <h4>My Past Bookings</h4>
+        <ul id="bookingList" class="list-group"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJKgz1fONteZPPD5T9bcIVjw3-iBUZyro",
+      authDomain: "gopandacars-7085f.firebaseapp.com",
+      projectId: "gopandacars-7085f",
+      storageBucket: "gopandacars-7085f.appspot.com",
+      messagingSenderId: "486383420605"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const cars = [
+      {name:'Swift',image:'img/swift.jpg',price12hrs:1200,price24hrs:2000,description:'Compact hatchback with great fuel efficiency and comfortable seating for 5.',category:'economy'},
+      {name:'Etios',image:'img/etios.jpg',price12hrs:1200,price24hrs:2000,description:'Reliable sedan with spacious interior and good mileage.',category:'economy'},
+      {name:'I10 Nios',image:'img/i10nios.jpg',price12hrs:1500,price24hrs:2300,description:'Premium hatchback with modern features and stylish design.',category:'economy'},
+      {name:'Swift Dzire',image:'img/swiftdzire.jpg',price12hrs:1500,price24hrs:2300,description:'Popular compact sedan with excellent ride quality.',category:'economy'},
+      {name:'Hyundai Aura',image:'img/aura.jpg',price12hrs:1500,price24hrs:2500,description:'Stylish compact sedan with premium features.',category:'premium'},
+      {name:'Tata Punch',image:'img/punch.jpg',price12hrs:1500,price24hrs:2500,description:'Compact SUV with rugged design and modern features.',category:'premium'},
+      {name:'Hyundai i20',image:'img/i20.jpg',price12hrs:1500,price24hrs:2500,description:'Premium hatchback with sporty looks and advanced features.',sunroof:true,category:'premium'},
+      {name:'Renault Kiger',image:'img/kiger.jpg',price12hrs:1500,price24hrs:2500,description:'Compact SUV with bold styling and spacious interior.',category:'premium'},
+      {name:'Urban Cruiser',image:'img/urban-cruiser.jpg',price12hrs:1500,price24hrs:2500,description:'Compact SUV with Toyota reliability and comfort.',category:'premium'},
+      {name:'Brezza',image:'img/brezza.jpg',price12hrs:1500,price24hrs:2500,description:'Popular compact SUV with excellent build quality.',category:'premium'},
+      {name:'Nexa Fronx',image:'img/fronx.jpg',price12hrs:1500,price24hrs:2500,description:'Stylish crossover with premium features.',sunroof:true,category:'premium'},
+      {name:'Hyundai Creta',image:'img/creta.jpg',price12hrs:2000,price24hrs:3000,description:'Premium SUV with luxurious features and spacious cabin.',category:'premium'},
+      {name:'Grand Vitara',image:'img/grandvitara.jpg',price12hrs:2000,price24hrs:3000,description:'Premium SUV with hybrid technology and elegant design.',category:'premium'},
+      {name:'Ertiga',image:'img/ertiga.jpg',price12hrs:2000,price24hrs:3500,description:'7-seater MPV with comfortable seating and good mileage.',category:'premium'},
+      {name:'Bolero Neo',image:'img/bolero-neo.jpg',price12hrs:2000,price24hrs:3500,description:'Rugged SUV with excellent off-road capabilities.',category:'premium'},
+      {name:'Mahindra Thar',image:'img/thar.jpg',price12hrs:3500,price24hrs:5000,description:'Iconic off-roader with convertible top and powerful engine.',category:'luxury'},
+      {name:'Innova Crysta',image:'img/innova.jpg',price12hrs:3500,price24hrs:5000,description:'Premium 7-seater MPV with luxurious comfort.',category:'luxury'},
+      {name:'Brezza Sunroof',image:'img/brezza-sunroof.jpg',price12hrs:1500,price24hrs:2500,description:'Compact SUV with panoramic sunroof for open-air experience.',sunroof:true,category:'premium'},
+      {name:'Mahindra XUV700',image:'img/xuv700.jpg',price12hrs:4500,price24hrs:6500,description:'Premium SUV with advanced features and powerful performance.',withDriver:true,category:'luxury'},
+      {name:'Hyundai Venue',image:'img/venue.jpg',price12hrs:1500,price24hrs:2500,description:'Compact SUV with bold styling and connected car tech.',category:'premium'},
+      {name:'Baleno',image:'img/baleno.jpg',price12hrs:1500,price24hrs:2500,description:'Mid variant hatchback with comfort, style, and great fuel efficiency.',category:'premium'},
+      {name:'Tata Nexon Sunroof',image:'img/nexon-sunroof.jpg',price12hrs:1800,price24hrs:2800,description:'Safe and stylish compact SUV with panoramic sunroof.',sunroof:true,category:'premium'},
+      {name:'Tata Altroz Sunroof',image:'img/altroz-sunroof.jpg',price12hrs:1600,price24hrs:2500,description:'Premium hatchback with sunroof and premium interiors.',sunroof:true,category:'premium'},
+      {name:'XUV 300 Sunroof',image:'img/xuv300-sunroof.jpg',price12hrs:1800,price24hrs:2800,description:'Feature-packed compact SUV with sunroof option.',sunroof:true,category:'premium'},
+      {name:'Fortuner',image:'img/fortuner.jpg',price12hrs:8000,price24hrs:12000,description:'Premium full-size SUV with powerful engine and luxury features.',withDriver:true,category:'luxury'},
+      {name:'Kia Seltos',image:'img/kia-selto.jpg',price12hrs:1800,price24hrs:2800,description:'Stylish SUV with premium features and spacious cabin.',category:'premium'}
+    ];
+
+    // DOM refs
+    const authDiv = document.getElementById('authDiv'),
+          bookingSection = document.getElementById('bookingSection'),
+          authMsg = document.getElementById('authMsg'),
+          bookMsg = document.getElementById('bookMsg'),
+          carList = document.getElementById('carList'),
+          selCar = document.getElementById('selCar'),
+          bookingList = document.getElementById('bookingList');
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        authDiv.style.display = 'none';
+        bookingSection.style.display = 'block';
+        renderCars();
+        loadUserBookings();
+      } else {
+        authDiv.style.display = 'block';
+        bookingSection.style.display = 'none';
+      }
+    });
+
+    document.getElementById('btnSignUp').onclick = () => {
+      auth.createUserWithEmailAndPassword(email.value, password.value)
+        .catch(e => authMsg.textContent = e.message);
+    };
+    document.getElementById('btnSignIn').onclick = () => {
+      auth.signInWithEmailAndPassword(email.value, password.value)
+        .catch(e => authMsg.textContent = e.message);
+    };
+    document.getElementById('btnSignOut').onclick = () => auth.signOut();
+
+    function renderCars() {
+      carList.innerHTML = '';
+      selCar.innerHTML = '<option value="">Choose Car...</option>';
+      cars.forEach((car, idx) => {
+        const card = document.createElement('div');
+        card.className = 'col-md-4 mb-3';
+        card.innerHTML = `
+          <div class="card h-100">
+            <img src="${car.image}" class="card-img-top" alt="${car.name}">
+            <div class="card-body">
+              <h5>${car.name}</h5>
+              <p>${car.description}</p>
+              <p>₹${car.price12hrs}/12h • ₹${car.price24hrs}/24h</p>
+              ${car.sunroof ? '<span class="badge bg-info me-1">Sunroof</span>' : ''}
+              ${car.withDriver ? '<span class="badge bg-warning">With Driver</span>' : ''}
+              <span class="badge bg-secondary">${car.category}</span>
+            </div>
+          </div>`;
+        carList.appendChild(card);
+        selCar.innerHTML += `<option value="${idx}">${car.name}</option>`;
+      });
+    }
+
+    document.getElementById('btnBook').onclick = () => {
+      const idx = selCar.value, start = document.getElementById('startDate').value, end = document.getElementById('endDate').value;
+      if (idx === '' || !start || !end) { bookMsg.textContent = 'Please fill all fields'; return; }
+      const car = cars[idx];
+      db.collection('bookings').add({userId:auth.currentUser.uid, email:auth.currentUser.email, carId:car.name, startDate:start, endDate:end, status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp()})
+        .then(() => { bookMsg.textContent = 'Booking successful!'; loadUserBookings(); });
+    };
+
+    function loadUserBookings() {
+      bookingList.innerHTML = '';
+      db.collection('bookings').where('userId','==',auth.currentUser.uid).orderBy('createdAt','desc').get()
+      .then(snap => snap.forEach(doc => {
+        const b = doc.data();
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = `${b.carId} | ${b.startDate}–${b.endDate} | ${b.status}`;
+        bookingList.appendChild(li);
+      }));
+    }
+  </script>
+</body>
+</html>
